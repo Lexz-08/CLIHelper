@@ -38,8 +38,10 @@ internal class Program
 ```
 ## To-Do
 - [ ] Check for entry method named `Main` to ensure clarity with attribute usage
-- [ ] Print out available arguments if none are provided
-- [ ] Make use of `Description` metadata in `CLIAttribute`
+- [X] Print out available arguments if none are provided
+- [X] Make use of `Description` metadata in `CLIAttribute`
 - [ ] Replace `_` in enum value names with `-` for complex switch arguments
+## Example of Argument Layout (given insufficient arguments)
+![](image.png)
 ## Download
 [CLIHelper.dll](https://github.com/Lexz-08/CLIHelper/releases/latest/download/CLIHelper.dll)
