@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -55,7 +57,7 @@ namespace CLIHelper
 		/// </summary>
 		/// <param name="ParseArguments">Whether the command-line arguments will be parsed by this method.</param>
 		/// <returns>A <see cref="Dictionary{TKey, TValue}"/> where <b>TKey</b> is the argument name and <b>TValue</b> is the command-line argument.</returns>
-		public static Dictionary<string, Value> GetArguments()
+		public static ReadOnlyDictionary<string, Value> GetArguments()
 		{
 			Assembly asm = Assembly.GetCallingAssembly();
 			
@@ -94,7 +96,181 @@ namespace CLIHelper
 			foreach (var grp in required.GroupBy(cli => cli.Order))
 				if (grp.Count() > 1) throw new InvalidOperationException("Cannot have optional arguments with the same order value.");
 
-			if (args.Length < required.Length)
+			if (args.Length == 0)
+			{
+				Console.Write(Path.GetFileName(Assembly.GetCallingAssembly().Location));
+
+				foreach (RequiredCLIAttribute cli in required)
+				{
+					if (cli is ArgumentAttribute arg)
+					{
+						Console.ForegroundColor = ConsoleColor.Gray;
+						if (Array.IndexOf(required, cli) % 2 == 0)
+						{
+							Console.WriteLine();
+							Console.Write("\t(");
+						}
+						else Console.Write(" (");
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(cli.Name);
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.Write(", Type:");
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(arg.Type);
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.Write(')');
+					}
+					else if (cli is SwitchAttribute swt)
+					{
+						Console.ForegroundColor = ConsoleColor.Gray;
+						if (Array.IndexOf(required, cli) % 2 == 0)
+						{
+							Console.WriteLine();
+							Console.Write("\t(");
+						}
+						else Console.Write(" (");
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(cli.Name);
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.Write(", Switch:");
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(swt.Enum.Name);
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.Write(')');
+					}
+				}
+
+				Console.WriteLine("\n\n");
+				Console.WriteLine("Arguments:");
+				Console.ForegroundColor = ConsoleColor.DarkCyan;
+				Console.WriteLine("\n--Required");
+
+				foreach (RequiredCLIAttribute cli in required)
+				{
+					if (cli is ArgumentAttribute arg)
+					{
+						Console.ForegroundColor = ConsoleColor.Green;
+						Console.Write(cli.Name);
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(" Type:");
+						Console.ForegroundColor = ConsoleColor.Blue;
+						Console.Write(arg.Type);
+						if (!string.IsNullOrEmpty(cli.Description))
+						{
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write(" - ");
+							Console.ForegroundColor = ConsoleColor.DarkGreen;
+							Console.WriteLine(cli.Description);
+						}
+						else Console.WriteLine();
+					}
+					else if (cli is SwitchAttribute swt)
+					{
+						Console.ForegroundColor = ConsoleColor.Green;
+						Console.Write(cli.Name);
+						Console.ForegroundColor = ConsoleColor.DarkGray;
+						Console.Write(" Switch:");
+						Console.ForegroundColor = ConsoleColor.Blue;
+						Console.Write(swt.Enum.Name);
+						if (!string.IsNullOrEmpty(cli.Description))
+						{
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write(" - ");
+							Console.ForegroundColor = ConsoleColor.DarkGreen;
+							Console.WriteLine(cli.Description);
+						}
+						else Console.WriteLine();
+					}
+				}
+
+				if (optional.Length > 0)
+				{
+					Console.ForegroundColor = ConsoleColor.Yellow;
+					Console.WriteLine("\n--Optional");
+
+					foreach (OptionalCLIAttribute cli in optional)
+					{
+						if (cli is OptionalArgumentAttribute arg)
+						{
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write('[');
+							Console.ForegroundColor = ConsoleColor.Green;
+							Console.Write(cli.Name);
+							Console.ForegroundColor = ConsoleColor.DarkGray;
+							Console.Write(" Type:");
+							Console.ForegroundColor = ConsoleColor.DarkYellow;
+							Console.Write(arg.Type);
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write(']');
+							if (!string.IsNullOrEmpty(cli.Description))
+							{
+								Console.Write(" - ");
+								Console.ForegroundColor = ConsoleColor.DarkGreen;
+								Console.WriteLine(cli.Description);
+							}
+							else Console.WriteLine();
+						}
+						else if (cli is OptionalSwitchAttribute swt)
+						{
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write('[');
+							Console.ForegroundColor = ConsoleColor.Green;
+							Console.Write(cli.Name);
+							Console.ForegroundColor = ConsoleColor.DarkGray;
+							Console.Write(" Switch:");
+							Console.ForegroundColor = ConsoleColor.DarkYellow;
+							Console.Write(swt.Enum.Name);
+							Console.ForegroundColor = ConsoleColor.Gray;
+							Console.Write(']');
+							if (!string.IsNullOrEmpty(cli.Description))
+							{
+								Console.Write(" - ");
+								Console.ForegroundColor = ConsoleColor.DarkGreen;
+								Console.WriteLine(cli.Description);
+							}
+							else Console.WriteLine();
+						}
+					}
+				}
+
+				// TODO: print out available switch types
+				if (clis.OfType<SwitchAttribute>().Count() > 0 || clis.OfType<OptionalSwitchAttribute>().Count() > 0)
+				{
+					HashSet<Type> enums = new HashSet<Type>();
+					foreach (CLIAttribute cli in clis)
+					{
+						if (cli is SwitchAttribute swt) enums.Add(swt.Enum);
+						else if (cli is OptionalSwitchAttribute oswt) enums.Add(oswt.Enum);
+					}
+					Console.WriteLine("\n--Switches");
+					foreach (Type tenum in enums.Distinct())
+					{
+						Console.ForegroundColor = ConsoleColor.Red;
+						Console.Write(tenum.Name);
+						Console.ForegroundColor = ConsoleColor.Gray;
+						Console.Write(" --");
+						string[] enames = Enum.GetNames(tenum);
+						foreach (string name in enames)
+						{
+							Console.ForegroundColor = ConsoleColor.Gray;
+							if (Array.IndexOf(enames, name) > 0)
+							{
+								Console.Write(',');
+
+								if (enames[Array.IndexOf(enames,name) - 1].Length + name.Length > 36 || Array.IndexOf(enames, name) % 4 == 0)
+									Console.WriteLine();
+							}
+							Console.Write(' ');
+							Console.ForegroundColor = ConsoleColor.Cyan;
+							Console.Write(name);
+						}
+						Console.WriteLine();
+					}
+				}
+
+				return null;
+			}
+			else if (args.Length < required.Length)
 			{
 				Console.WriteLine("Insufficient arguments provided...");
 				return null;
@@ -146,7 +322,7 @@ namespace CLIHelper
 				arguments.Add(cli.Name, arg);
 			}
 
-			if (optional.Length == 0) return arguments;
+			if (optional.Length == 0) return new ReadOnlyDictionary<string, Value>(arguments);
 			else if (args.Length > required.Length)
 			{
 				var optArgs = args.Skip(required.Length);
@@ -197,7 +373,7 @@ namespace CLIHelper
 			}
 			else return null;
 
-			return arguments.Count > 0 ? arguments : null;
+			return arguments.Count > 0 ? new ReadOnlyDictionary<string, Value>(arguments) : null;
 		}
 	}
 }
