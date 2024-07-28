@@ -39,7 +39,7 @@ internal class Program
 ## To-Do
 - [ ] Check for entry method named `Main` to ensure clarity with attribute usage
 - [X] Print out available arguments if none are provided
-- [X] Make use of `Description` metadata in `CLIAttribute`
+- [X] Make use of `Description` metadata in [`CLIAttribute`](https://github.com/Lexz-08/CLIHelper/blob/master/CLIHelper/Attributes.cs)
 - [ ] Replace `_` in enum value names with `-` for complex switch arguments
 ## Example of Argument Layout (given insufficient arguments)
 ![](image.png)
